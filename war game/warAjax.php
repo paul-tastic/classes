@@ -10,8 +10,8 @@ session_start();
 
 		public function __construct($cardNumber) {
 			$this->cardNumber = $cardNumber;
-			//52 cards in a deck, 0-12 = hearts, 13-25 = diamonds, 26-38 clubs, 39-51 spades
-			// cards: 0 = Ace, 2-10, 11 = Jack, 12= queen, 1 = king
+			//52 cards in a deck, 1-13 = hearts, 14-26 = diamonds, 27-39 clubs, 40-52 spades
+			// cards: 1 = Ace, 2-10, 11 = Jack, 12= queen, 13 = king
 
 			if ($cardNumber < 14) {
 					// hearts
