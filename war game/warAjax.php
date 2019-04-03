@@ -8,34 +8,34 @@ session_start();
 		private $number;
 		private $played;
 
-		public function __construct($cardNumber) {
-			$this->cardNumber = $cardNumber;
-			//52 cards in a deck, 1-13 = hearts, 14-26 = diamonds, 27-39 clubs, 40-52 spades
-			// cards: 1 = Ace, 2-10, 11 = Jack, 12= queen, 13 = king
+		public function __construct($card) {
+			$this->cardNumber = $card;
+			//52 cards in a deck, 0-12 = hearts, 13-25 = diamonds, 26-38 clubs, 39-51 spades
+			// cards: 0 = Ace, 2-10, 11 = Jack, 12= queen, 1 = king
 
-			if ($cardNumber < 14) {
-					// hearts
-					$this->suit = "hearts";
-					$this->rank = $cardNumber;
-				} else if ($cardNumber < 27) {
-					// diamonds
-					$this->suit = "diamonds";
-					$this->rank = $cardNumber-13;
-				} else if ($cardNumber < 40) {
-					// clubs
-					$this->suit = "clubs";
-					$this->rank = $cardNumber-26;
-				} else if ($cardNumber < 53) {
-					// spades
-					$this->suit = "spades";
-					$this->rank = $cardNumber-39;
-				}
+			if ($card < 14) {
+				// hearts
+				$this->suit = "Hearts";
+				$this->rank = $card;
+			} else if ($card < 27) {
+				// diamonds
+				$this->suit = "Diamonds";
+				$this->rank = $card-13;
+			} else if ($card < 40) {
+				// clubs
+				$this->suit = "Clubs";
+				$this->rank = $card-26;
+			} else if ($card < 53) {
+				// spades
+				$this->suit = "Spades";
+				$this->rank = $card-39;
+			}
 				
-			switch ($cardNumber) {
+			switch ($card) {
 				case 1:
 				case 14:
 				case 27:
-				case 39: 
+				case 40: 
 					$this->rank = 14;
 					// all the aces!
 					break;
@@ -105,77 +105,94 @@ function assignRank($card) {
 
 IF ($_SERVER["REQUEST_METHOD"] === "POST") {
 
+	// *************************************************************
+	// *************************************************************
+	// *************************************************************
+
 	if ($_POST['key'] === "shuffle") {
 		// deal 52 cards, shuffle them, and split the deck in half!
-			$player1cards = array(); 
-			$player2cards = array();
-			$cards = array();
-			for ($i=1; $i<53; $i++) {
-				$cards[$i] = $i;
-				shuffle($cards);
-				$player1cards = array_slice($cards, 1, 27);
-				$player2cards = array_slice($cards, 27, 26);
+		$player1cards = array(); 
+		$player2cards = array();
+		$warRound = 0;
+		$cards = array();
+		for ($i=0; $i<52; $i++) {
+			$cards[$i] = $i;
 			}
-
+			$cards[0] = 52;
+			shuffle($cards);
+			$player1cards = array_slice($cards, 0, 26);
+			$player2cards = array_slice($cards, 26, 26);
+			// cut the deck!
+			$player1cards[26] = $player1cards[0];
+			$player2cards[26] = $player2cards[0];
 		// set and initialize session variable to store cards and stats
 		$_SESSION['player1cards'] = $player1cards;
 		$_SESSION['player2cards'] = $player2cards;
-		$_SESSION['warRound'] = 0;
-		$_SESSION['player1score'] = 0;
-		$_SESSION['player2score'] = 0;
+		// $_SESSION['warRound'] = 0;
+		// $_SESSION['player1score'] = 0;
+		// $_SESSION['player2score'] = 0;
+		$p1Score = 0;
+		$p2Score = 0;
 
-		echo "cards shuffled, ready to deal!";
+		echo json_encode(array(
+			"message" => "cards shuffled, ready to deal!",
+			"p1Score" => $p1Score,
+			"p2Score" => $p2Score,
+			"warRound" => $warRound
+		));
 	
 	} // shuffled!
 
+	// *************************************************************
+	// *************************************************************
+	// *************************************************************
+
 	if ($_POST['key'] === "deal") {
 
+		//increment session
+		$warRound = $_POST['warRound'];
+		$warRound++;
+		$p1Score = $_POST['p1Score'];
+		$p2Score = $_POST['p2Score'];
+
 		// pull data from session variable
-		// $p1score = $_SESSION['player1score'];
-		// $p2score = $_SESSION['player2score'];
 		$player1cards = $_SESSION['player1cards'];
 		$player2cards = $_SESSION['player2cards'];
 		
 		//get next Card from players
-		$p1Card = new PlayingCard($player1cards[$_SESSION['warRound']]);
-		$p2Card = new PlayingCard($player2cards[$_SESSION['warRound']]);
+		$p1Card = new PlayingCard($player1cards[$warRound]);
+		$p2Card = new PlayingCard($player2cards[$warRound]);
 		
 		$player1rank = $p1Card->getRank();
 		$player1card = $p1Card->getCardNumber();
 		$player1suit = $p1Card->getSuit();
-
+		$p1CardDecoded = assignRank($player1rank);
+		
 		$player2rank = $p2Card->getRank();
 		$player2card = $p2Card->getCardNumber();
 		$player2suit = $p2Card->getSuit();
+		$p2CardDecoded = assignRank($player2rank);
 
 		//get the score
 		if ($player1rank > $player2rank) {
-			$_SESSION['player1score']++;
+			$p1Score++;
 		} elseif ($player1rank < $player2rank) {
-			$_SESSION['player2score']++;
+			$p2Score++;
 		} elseif ($player1rank == $player2rank) {
 			//tie, more logic to break tie 
 		}
 
-		$player1rank = assignRank($player1rank);
-		$player2rank = assignRank($player2rank);
+		echo json_encode(array(
+			"p1Card" => $p1CardDecoded, 
+			"p1Suit" => $player1suit,
+			"p2Card" => $p2CardDecoded, 
+			"p2Suit" => $player2suit,
+			"p1Score" => $p1Score,
+			"p2Score" => $p2Score,
+			"warRound" => $warRound
+		));
 
-		//increment session
-		$_SESSION['warRound']++;
-		
-		echo "
-		<div class='col-md-3 offset-md-3 score-col' id='battlefield1side'>
-			<div class='battlefield' id='p1battlefield'>
-				The {$player1rank} of {$player1suit}
-			</div>
-		</div>
-		<div class='col-md-3 score-col' id='battlefield2side'>
-			<div class='battlefield' id='p2battlefield'>
-				The {$player2rank} of {$player2suit}
-			</div>
-		</div>
-					";
 	}
-} // original POST
+} //  REQUEST METHOD
 
 ?>

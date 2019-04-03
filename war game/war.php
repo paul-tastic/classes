@@ -1,5 +1,11 @@
-<?php 
-	session_start(); 
+<?php
+session_start(); 
+
+if (!isset($_SESSION['player1cards'])) {
+	$_SESSION['player1cards'] = array();
+	$_SESSION['player2cards'] = array();
+}
+
 ?>
 <!DOCTYPE html>
 <html>
@@ -10,7 +16,6 @@
 		#main-container {
 			width: 70%;
 			margin: 20px auto;
-			
 		}
 		#title-row {
 			text-align: center;
@@ -27,18 +32,19 @@
 		.score-box-lower {
 			height: 75%;
 			border: 1px solid black;
-			font-size: 2.6rem;
+			font-size: 2.8rem;
 		}
 		.score-box-top {
 			height: 25%;
 			
 		}
 		#battlefield-row {
-			height: 50px;
+			
 		}
 		#comment-row {
 			text-align: center;
-			height: 50px;
+			height: 75px;
+			margin: 8px auto;
 		}
 		#deal-button-row {
 
@@ -56,6 +62,14 @@
 		#round-number {
 			text-align: center;
 		}
+		.battlefield {
+			margin-top: 12px;
+		}
+		.winner {
+			color: #155724;
+			background-color: #d4edda;
+		}
+
 	</style>
 </head>
 <body>
@@ -76,11 +90,18 @@
 				<div class="score-box-lower" id="p2score"></div>
 			</div>
 		</div>
-		<div class="row" id="battlefield-row"></div>
+		<div class="row" id="battlefield-row">
+			<div class='col-md-3 offset-md-3 score-col' id='battlefield1side'>
+				<div class='battlefield' id='p1battlefield'></div>
+			</div>
+			<div class='col-md-3 score-col' id='battlefield2side'>
+				<div class='battlefield' id='p2battlefield'></div>
+			</div>
+		</div>
 		<div id="comment-row"></div>
 		<div class="b-row" id="deal-button-row">
-			<button type="button" class="btn btn-outline-success buttons" name="start" id="start" onclick="startGame();">Start Game!</button>
-			<button type="button" class="btn btn-success buttons" name="deal" id="deal" onclick="dealAJAX();">Deal!</button>
+			<button type="button" class="btn btn-outline-success buttons" name="start" id="start" onclick="startGame();">Start New Game!</button>
+			<button type="button" class="btn btn-outline-primary buttons" name="deal" id="deal" onclick="dealAJAX();">Deal!</button>
 		</div>
 	</div>
 	<script src="https://code.jquery.com/jquery-3.2.1.min.js"></script>
@@ -89,29 +110,45 @@
 
 	<script type="text/javascript">
 
-
+		var warRound;
+		var p1Score;
+		var p2Score;
 		$('#deal').hide();
 
+		function updateScoreboard() {
+    		$('#round-number').text("Round: "+ warRound);
+			$('#p1score').text(p1Score);
+			$('#p2score').text(p2Score);
+		}
+
 		function startGame() {
+    		$('.score-box-lower').removeClass('winner');
+			$('#p1battlefield').text("");
+    		$('#p2battlefield').text("");	
     		$('#comment-row').text('Shuffling the cards!');
-			//shuffle
-			setTimeout(func, 3000);
+			//shuffle cards
+
+			setTimeout(func, 1000);
 				function func() {
-    				$('#start').hide();
-    				$('#deal').show();
+				$('#start').hide();
+				$('#deal').show();
+					
 					$.ajax ({
 			          url: 'warAjax.php',
 			          method: 'POST',
-			          dataType: 'text',
+			          dataType: 'json',
 			          data: {
 			            key : 'shuffle',
 			          }, 
 			          success: function (response) {
 			              // shuffle and deal the cards
-		    			$('#comment-row').text(response);
-		    			$('#p1score').text(<?php echo $_SESSION['player1score']; ?>);
-		    			$('#p2score').text(<?php echo $_SESSION['player2score']; ?>);
-		    			$('#round-number').text("Round: "+ <?php echo $_SESSION['warRound']; ?>);
+						$('#loader').hide();
+
+		    			$('#comment-row').text(response.message);
+    					warRound = response.warRound;
+    					p1Score = response.p1Score;
+    					p2Score = response.p2Score;
+    					updateScoreboard(p1Score, p2Score, warRound);
 			            }
 			         }); 
 				}
@@ -121,16 +158,42 @@
 			$.ajax ({
 	          url: 'warAjax.php',
 	          method: 'POST',
-	          dataType: 'text',
+	          dataType: 'json',
+	          cache: false,
 	          data: {
 	            key : 'deal',
+	            warRound: warRound,
+	            p1Score: p1Score,
+	            p2Score: p2Score,
 	          }, 
 	          success: function (response) {
 	          	$('#comment-row').text('');
-    			$('#battlefield-row').html(response);
-    			$('#p1score').text(<?php echo $_SESSION['player1score']; ?>);
-    			$('#p2score').text(<?php echo $_SESSION['player2score']; ?>);
-    			$('#round-number').text("Round: "+ <?php echo $_SESSION['warRound']; ?>);
+    			warRound = response.warRound;
+    			p1Score = response.p1Score;
+    			p2Score = response.p2Score;
+    			$('#p1battlefield').text("The " + response.p1Card + " of " + response.p1Suit);
+    			$('#p2battlefield').text("The " + response.p2Card + " of " + response.p2Suit);	
+    			updateScoreboard(p1Score, p2Score, warRound);
+    			if (warRound == 26) {
+    				// game over!!
+    				// swap buttons
+    				$('#start').show();
+    				$('#deal').hide();
+    				// display winner screen
+    				if (p1Score > p2Score) {
+    					// p1 wins!
+    					$('#comment-row').html('<div class="alert alert-success" role="alert">Player 1 Wins!!</div>');
+    					$('#p1score').addClass('winner');
+    				} else if (p1Score < p2Score) {
+    					// p2 wins!
+    					$('#comment-row').html('<div class="alert alert-success" role="alert">Player 2 Wins!!</div>');
+    					$('#p2score').addClass('winner');
+    					
+    				} else {
+    					// tie!
+    					$('#comment-row').html('<div class="alert alert-info" role="alert">A tie?? Like kissing your sister!</div>');
+    				}
+    			}
 	            }
 	          }); 
 		}
